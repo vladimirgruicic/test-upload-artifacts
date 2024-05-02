@@ -2,6 +2,8 @@ name: Extract Text from PDF
 
 on:
   push:
+    paths:
+      - 'pdf/**/*.pdf' # Trigger workflow on any push event, but only for PDF files inside the pdf folder
 
 jobs:
   extract_text:
@@ -11,7 +13,7 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v2
 
-    - name: Set up Tesseract OCR
+    - name: Set up Tesseract OCR and Poppler
       run: |
         sudo apt-get update
         sudo apt-get install -y tesseract-ocr poppler-utils
@@ -19,15 +21,24 @@ jobs:
     - name: List PDF files
       id: list-pdf
       run: |
-        pdf_files=$(find . -type f -name '*.pdf')
+        pdf_files=$(find pdf/ -type f -name '*.pdf' -not -path "pdf-to-txt/*")
         echo "::set-output name=pdf_files::$pdf_files"
 
     - name: Process PDF files
       run: |
         for pdf_file in ${{ steps.list-pdf.outputs.pdf_files }}; do
-          output_folder="${pdf_file%.*}_images"
+          # Extract base name of PDF file without extension
+          pdf_basename=$(basename -- "$pdf_file")
+          pdf_name="${pdf_basename%.*}"
+
+          # Create output folder for each PDF file
+          output_folder="pdf-to-txt/$pdf_name"
           mkdir -p "$output_folder"
+
+          # Convert PDF to images
           pdftoppm -png "$pdf_file" "$output_folder/page"
+
+          # Process each image with Tesseract OCR
           for image_file in "$output_folder"/*.png; do
             text_file="${image_file%.*}.txt"
             tesseract "$image_file" "$text_file" -l eng
@@ -36,10 +47,10 @@ jobs:
 
     - name: Display Extracted Text
       run: |
-        cat **/*.txt | head -c 2000
+        cat pdf-to-txt/**/*.txt | head -c 2000
 
     - name: Upload Text Artifact
       uses: actions/upload-artifact@v2
       with:
-        name: extracted-text
-        path: '**/*.txt'
+        name: pdf-to-txt-output
+        path: 'pdf-to-txt/**/*.txt'
