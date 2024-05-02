@@ -1,4 +1,4 @@
-name: Extract Text from PDF
+name: Extract Text and Send Results
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - 'pdf/**/*.pdf' # Trigger workflow on any push event, but only for PDF files inside the pdf folder
 
 jobs:
-  extract_text:
+  extract_text_and_send_results:
     runs-on: ubuntu-latest
 
     steps:
@@ -43,14 +43,28 @@ jobs:
             text_file="${image_file%.*}.txt"
             tesseract "$image_file" "$text_file" -l eng
           done
+
+          # Run Python script
+          python main.py "$output_folder"
+
+          # Check if word was found
+          word_found=$(cat "$output_folder/word_found.txt")
+          if [ "$word_found" = "true" ]; then
+            echo "Word 'Pola' found in PDF file: $pdf_basename"
+          else
+            echo "Word 'Pola' not found in PDF file: $pdf_basename"
+          fi
         done
 
-    - name: Display Extracted Text
-      run: |
-        cat pdf-to-txt/**/*.txt | head -c 2000
-
-    - name: Upload Text Artifact
-      uses: actions/upload-artifact@v2
+    - name: Send Results to Gmail
+      uses: dawidd6/action-send-mail@v2
       with:
-        name: pdf-to-txt-output
-        path: 'pdf-to-txt/**/*.txt'
+        server_address: smtp.gmail.com
+        server_port: 587
+        username: ${{ secrets.eMAIL_USERNAME }}
+        password: ${{ secrets.EMAIL_PASSWORD }}
+        subject: "PDF Processing Results"
+        to: vladimir.gruicic@gmail.com
+        from: githubtest36@gmail.com
+        body: "The PDF processing is complete. Please find the results attached."
+        attachments: "pdf-to-txt/**/*.txt"
