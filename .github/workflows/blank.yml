@@ -14,7 +14,7 @@ jobs:
     - name: Set up Tesseract OCR
       run: |
         sudo apt-get update
-        sudo apt-get install -y tesseract-ocr
+        sudo apt-get install -y tesseract-ocr poppler-utils
 
     - name: List PDF files
       id: list-pdf
