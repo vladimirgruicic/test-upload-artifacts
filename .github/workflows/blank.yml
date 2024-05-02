@@ -2,8 +2,6 @@ name: Extract Text from PDF
 
 on:
   push:
-    paths:
-      - '*.pdf' # Trigger workflow on PDF file changes
 
 jobs:
   extract_text:
@@ -18,27 +16,30 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y tesseract-ocr
 
-    - name: Convert PDF to Images
+    - name: List PDF files
+      id: list-pdf
       run: |
-        for pdf_file in *.pdf; do
+        pdf_files=$(find . -type f -name '*.pdf')
+        echo "::set-output name=pdf_files::$pdf_files"
+
+    - name: Process PDF files
+      run: |
+        for pdf_file in ${{ steps.list-pdf.outputs.pdf_files }}; do
           output_folder="${pdf_file%.*}_images"
           mkdir -p "$output_folder"
           pdftoppm -png "$pdf_file" "$output_folder/page"
-        done
-
-    - name: Extract Text from Images
-      run: |
-        for image_file in *_images/*.png; do
-          text_file="${image_file%.*}.txt"
-          tesseract "$image_file" "$text_file" -l eng
+          for image_file in "$output_folder"/*.png; do
+            text_file="${image_file%.*}.txt"
+            tesseract "$image_file" "$text_file" -l eng
+          done
         done
 
     - name: Display Extracted Text
       run: |
-        cat *_images/*.txt | head -c 2000
+        cat **/*.txt | head -c 2000
 
     - name: Upload Text Artifact
       uses: actions/upload-artifact@v2
       with:
         name: extracted-text
-        path: '*_images/*.txt'
+        path: '**/*.txt'
