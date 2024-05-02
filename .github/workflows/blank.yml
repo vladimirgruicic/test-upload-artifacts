@@ -1,33 +1,36 @@
-name: Process Text File
+name: Extract Text from PDF
 
 on:
   push:
     paths:
-      - '*.txt' # Trigger workflow on text file changes
+      - '*.pdf' # Trigger workflow on PDF file changes
 
 jobs:
-  process_text:
+  extract_text:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v2
 
-    - name: Read Text File
-      id: read-text
+    - name: Set up Tesseract OCR
       run: |
-        echo "::set-output name=content::$(cat text.txt)"
+        sudo apt-get update
+        sudo apt-get install -y tesseract-ocr
 
-    - name: Modify Text
-      id: modify-text
+    - name: Extract Text from PDF
       run: |
-        echo "${{ steps.read-text.outputs.content }}" | tr '[:lower:]' '[:upper:]' > output.txt
+        for pdf_file in *.pdf; do
+          text_file="${pdf_file%.*}.txt"
+          tesseract "$pdf_file" "$text_file" -l eng
+        done
 
-    - name: Display Modified Text
-      run: cat output.txt
+    - name: Display Extracted Text
+      run: |
+        cat *.txt | head -c 2000
 
-    - name: Upload Artifact
+    - name: Upload Text Artifact
       uses: actions/upload-artifact@v2
       with:
-        name: processed-text
-        path: output.txt
+        name: extracted-text
+        path: '*.txt'
