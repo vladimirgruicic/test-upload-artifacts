@@ -18,19 +18,27 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y tesseract-ocr
 
-    - name: Extract Text from PDF
+    - name: Convert PDF to Images
       run: |
         for pdf_file in *.pdf; do
-          text_file="${pdf_file%.*}.txt"
-          tesseract "$pdf_file" "$text_file" -l eng
+          output_folder="${pdf_file%.*}_images"
+          mkdir -p "$output_folder"
+          pdftoppm -png "$pdf_file" "$output_folder/page"
+        done
+
+    - name: Extract Text from Images
+      run: |
+        for image_file in *_images/*.png; do
+          text_file="${image_file%.*}.txt"
+          tesseract "$image_file" "$text_file" -l eng
         done
 
     - name: Display Extracted Text
       run: |
-        cat *.txt | head -c 2000
+        cat *_images/*.txt | head -c 2000
 
     - name: Upload Text Artifact
       uses: actions/upload-artifact@v2
       with:
         name: extracted-text
-        path: '*.txt'
+        path: '*_images/*.txt'
